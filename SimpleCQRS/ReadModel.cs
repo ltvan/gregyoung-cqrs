@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace SimpleCQRS
 {
@@ -29,6 +30,8 @@ namespace SimpleCQRS
     {
         public Guid Id;
         public string Name;
+        public int CurrentCount;
+        public int Version;
 
         public InventoryItemListDto(Guid id, string name)
         {
@@ -60,7 +63,7 @@ namespace SimpleCQRS
     {
         public void Handle(InventoryItemCreated message)
         {
-            BullShitDatabase.details.Add(message.Id, new InventoryItemDetailsDto(message.Id, message.Name, 0,0));
+            BullShitDatabase.details.Add(message.Id, new InventoryItemDetailsDto(message.Id, message.Name, 0,message.Version));
         }
 
         public void Handle(InventoryItemRenamed message)
@@ -106,7 +109,11 @@ namespace SimpleCQRS
     {
         public IEnumerable<InventoryItemListDto> GetInventoryItems()
         {
-            return BullShitDatabase.list;
+            return BullShitDatabase.details.Values.Select(a => new InventoryItemListDto(a.Id, a.Name)
+            {
+                CurrentCount = a.CurrentCount,
+                Version = a.Version,
+            }).OrderBy(a => a.Name);
         }
 
         public InventoryItemDetailsDto GetInventoryItemDetails(Guid id)

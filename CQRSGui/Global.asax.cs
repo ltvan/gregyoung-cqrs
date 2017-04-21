@@ -4,6 +4,9 @@ using System.Linq;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Routing;
+using NEventStore;
+using NEventStore.Dispatcher;
+using NEventStore.Persistence.Sql.SqlDialects;
 using SimpleCQRS;
 
 namespace CQRSGui
@@ -32,8 +35,8 @@ namespace CQRSGui
             RegisterRoutes(RouteTable.Routes);
 
             var bus = new FakeBus();
-
-            var storage = new EventStore(bus);
+            var store = WireupEventStore();
+            var storage = new EventStore(bus, store);
             var rep = new Repository<InventoryItem>(storage);
             var commands = new InventoryCommandHandlers(rep);
             bus.RegisterHandler<CheckInItemsToInventory>(commands.Handle);
@@ -52,6 +55,39 @@ namespace CQRSGui
             bus.RegisterHandler<InventoryItemRenamed>(list.Handle);
             bus.RegisterHandler<InventoryItemDeactivated>(list.Handle);
             ServiceLocator.Bus = bus;
+
+            RestoreReadModel(store);
+        }
+
+        private static IStoreEvents WireupEventStore()
+        {
+            return Wireup.Init()
+                         //.LogToOutputWindow()
+                         //.UsingInMemoryPersistence()
+                         .UsingSqlPersistence("Default") // Connection string is in app.config
+                         .WithDialect(new MsSqlDialect())
+                         //.EnlistInAmbientTransaction() // two-phase commit
+                         .InitializeStorageEngine()
+                         //.TrackPerformanceInstance("example")
+                         .UsingJsonSerialization()
+                         //.Compress()
+                         //.EncryptWith(EncryptionKey)
+                         //.HookIntoPipelineUsing(new[] { new AuthorizationPipelineHook() })
+                         //.DispatchTo(new DelegateMessageDispatcher(DispatchCommit))
+                         .Build();
+        }
+
+        private static void RestoreReadModel(IStoreEvents store)
+        {
+            var bus = ServiceLocator.Bus;
+            var commits = store.Advanced.GetFrom();
+            foreach (var commit in commits)
+            {
+                foreach (var ev in commit.Events)
+                {
+                    bus.Publish(ev.Body as Event);
+                }
+            }
         }
     }
 }

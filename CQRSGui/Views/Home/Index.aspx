@@ -8,7 +8,7 @@
     <h2>All items:</h2>
     <ul><% foreach (var inventoryItemListDto in Model)
         {%><li>
-            <%: Html.ActionLink("Name: " + inventoryItemListDto.Name,"Details",new{Id=inventoryItemListDto.Id}) %>
+            <%: Html.ActionLink("Name: " + inventoryItemListDto.Name,"Details",new{Id=inventoryItemListDto.Id}) %> (<%=inventoryItemListDto.CurrentCount %>)
         </li>
     <%} %></ul>
     <%: Html.ActionLink("Add","Add") %>
